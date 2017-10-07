@@ -9,25 +9,26 @@ using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Roslynator.CSharp.CodeFixes;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace Roslynator.CSharp.Refactorings
 {
     internal static class ChangeMemberTypeRefactoring
     {
         public static void ComputeCodeFix(
-            CodeFixContext context,
-            Diagnostic diagnostic,
-            ExpressionSyntax expression,
-            SemanticModel semanticModel)
+             CodeFixContext context,
+             Diagnostic diagnostic,
+             ExpressionSyntax expression,
+             SemanticModel semanticModel)
         {
             TypeInfo typeInfo = semanticModel.GetTypeInfo(expression, context.CancellationToken);
 
-            ITypeSymbol oldTypeSymbol = typeInfo.Type;
+            ITypeSymbol expressionTypeSymbol = typeInfo.Type;
 
-            if (oldTypeSymbol == null)
+            if (expressionTypeSymbol == null)
                 return;
 
-            if (!oldTypeSymbol.SupportsExplicitDeclaration())
+            if (!expressionTypeSymbol.SupportsExplicitDeclaration())
                 return;
 
             (ISymbol symbol, ITypeSymbol typeSymbol) = GetContainingSymbolAndType(expression, semanticModel, context.CancellationToken);
@@ -43,18 +44,6 @@ namespace Roslynator.CSharp.Refactorings
             if (symbol.ImplementsInterfaceMember())
                 return;
 
-            ITypeSymbol newTypeSymbol = oldTypeSymbol;
-
-            if (symbol.IsAsyncMethod())
-            {
-                INamedTypeSymbol taskOfT = semanticModel.GetTypeByMetadataName(MetadataNames.System_Threading_Tasks_Task_T);
-
-                if (taskOfT == null)
-                    return;
-
-                newTypeSymbol = taskOfT.Construct(oldTypeSymbol);
-            }
-
             SyntaxNode node = symbol.GetSyntax(context.CancellationToken);
 
             if (node.Kind() == SyntaxKind.VariableDeclarator)
@@ -66,6 +55,29 @@ namespace Roslynator.CSharp.Refactorings
 
             if (type == null)
                 return;
+
+            ITypeSymbol newTypeSymbol = expressionTypeSymbol;
+
+            bool insertAwait = false;
+
+            if (symbol.IsAsyncMethod())
+            {
+                INamedTypeSymbol taskOfT = semanticModel.GetTypeByMetadataName(MetadataNames.System_Threading_Tasks_Task_T);
+
+                if (taskOfT == null)
+                    return;
+
+                if (expression.Kind() == SyntaxKind.AwaitExpression)
+                {
+                    newTypeSymbol = taskOfT.Construct(expressionTypeSymbol);
+                }
+                else if (expressionTypeSymbol.IsConstructedFrom(taskOfT))
+                {
+                    insertAwait = true;
+                }
+            }
+
+            string additionalKey = null;
 
             if (newTypeSymbol is INamedTypeSymbol newNamedType)
             {
@@ -79,12 +91,13 @@ namespace Roslynator.CSharp.Refactorings
                     {
                         INamedTypeSymbol constructedEnumerableSymbol = enumerableSymbol.Construct(newNamedType.TypeArguments.ToArray());
 
-                        RegisterCodeFix(context, diagnostic, node, type, constructedEnumerableSymbol, semanticModel, addTypeNameToEquivalenceKey: true);
+                        RegisterCodeFix(context, diagnostic, node, type, expression, constructedEnumerableSymbol, semanticModel, insertAwait: insertAwait);
+                        additionalKey = "IOrderedEnumerable<T>";
                     }
                 }
             }
 
-            RegisterCodeFix(context, diagnostic, node, type, newTypeSymbol, semanticModel);
+            RegisterCodeFix(context, diagnostic, node, type, expression, newTypeSymbol, semanticModel, insertAwait: insertAwait, additionalKey: additionalKey);
         }
 
         private static void RegisterCodeFix(
@@ -92,24 +105,56 @@ namespace Roslynator.CSharp.Refactorings
             Diagnostic diagnostic,
             SyntaxNode node,
             TypeSyntax type,
+            ExpressionSyntax expression,
             ITypeSymbol newTypeSymbol,
             SemanticModel semanticModel,
-            bool addTypeNameToEquivalenceKey = false)
+            bool insertAwait = false,
+            string additionalKey = null)
         {
             Document document = context.Document;
 
             string typeName = SymbolDisplay.GetMinimalString(newTypeSymbol, semanticModel, type.SpanStart);
 
+            string title = $"Change {GetText(node)} type to '{typeName}'";
+
+            if (insertAwait)
+                title += " and insert 'await'";
+
             CodeAction codeAction = CodeAction.Create(
-                $"Change {GetText(node)} type to '{typeName}'",
+                title,
                 cancellationToken =>
                 {
-                    TypeSyntax newType = SyntaxFactory.ParseTypeName(typeName)
+                    SyntaxNode newNode = null;
+
+                    TypeSyntax newType = ParseTypeName(typeName)
                         .WithTriviaFrom(type);
 
-                    return document.ReplaceNodeAsync(type, newType, cancellationToken);
+                    if (insertAwait)
+                    {
+                        var nodes = new SyntaxNode[] { type, expression };
+
+                        newNode = node.ReplaceNodes(nodes, (f, g) =>
+                        {
+                            if (f == type)
+                            {
+                                return newType;
+                            }
+                            else
+                            {
+                                return AwaitExpression(
+                                    Token(expression.GetLeadingTrivia(), SyntaxKind.AwaitKeyword, TriviaList(Space)),
+                                    expression.WithoutLeadingTrivia());
+                            }
+                        });
+
+                        return document.ReplaceNodeAsync(node, newNode, cancellationToken);
+                    }
+                    else
+                    {
+                        return document.ReplaceNodeAsync(type, newType, cancellationToken);
+                    }
                 },
-                EquivalenceKeyProvider.GetEquivalenceKey(diagnostic, CodeFixIdentifiers.ChangeMemberTypeAccordingToReturnExpression, (addTypeNameToEquivalenceKey) ? typeName : null));
+                EquivalenceKeyProvider.GetEquivalenceKey(diagnostic, CodeFixIdentifiers.ChangeMemberTypeAccordingToReturnExpression, additionalKey));
 
             context.RegisterCodeFix(codeAction, diagnostic);
         }
@@ -144,12 +189,11 @@ namespace Roslynator.CSharp.Refactorings
                     {
                         return (fieldSymbol, fieldSymbol.Type);
                     }
-                default:
-                    {
-                        Debug.Fail(expression.ToString());
-                        return default((ISymbol symbol, ITypeSymbol typeSymbol));
-                    }
             }
+
+            Debug.Fail(expression.ToString());
+
+            return default((ISymbol symbol, ITypeSymbol typeSymbol));
         }
 
         private static TypeSyntax GetTypeOrReturnType(SyntaxNode node)
