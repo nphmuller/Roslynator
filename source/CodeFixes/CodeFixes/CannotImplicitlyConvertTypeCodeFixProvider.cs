@@ -25,14 +25,16 @@ namespace Roslynator.CSharp.CodeFixes
         {
             if (!Settings.IsAnyCodeFixEnabled(
                 CodeFixIdentifiers.ReplaceStringLiteralWithCharacterLiteral,
-                CodeFixIdentifiers.UseYieldReturnInsteadOfReturn))
+                CodeFixIdentifiers.UseYieldReturnInsteadOfReturn,
+                CodeFixIdentifiers.ChangeMemberTypeAccordingToReturnExpression))
             {
                 return;
             }
 
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
-            SyntaxNode node = root.FindNode(context.Span, getInnermostNodeForTie: true);
+            if (!TryFindNode(root, context.Span, out ExpressionSyntax expression))
+                return;
 
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
@@ -40,21 +42,29 @@ namespace Roslynator.CSharp.CodeFixes
                 {
                     case CompilerDiagnosticIdentifiers.CannotImplicitlyConvertType:
                         {
-                            if (Settings.IsCodeFixEnabled(CodeFixIdentifiers.ReplaceStringLiteralWithCharacterLiteral)
-                                && node?.IsKind(SyntaxKind.StringLiteralExpression) == true)
+                            if (Settings.IsCodeFixEnabled(CodeFixIdentifiers.ChangeMemberTypeAccordingToReturnExpression))
                             {
-                                var literalExpression = (LiteralExpressionSyntax)node;
+                                SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
+
+                                ChangeMemberTypeRefactoring.ComputeCodeFix(context, diagnostic, expression, semanticModel);
+                                break;
+                            }
+
+                            if (Settings.IsCodeFixEnabled(CodeFixIdentifiers.ReplaceStringLiteralWithCharacterLiteral)
+                                && expression?.IsKind(SyntaxKind.StringLiteralExpression) == true)
+                            {
+                                var literalExpression = (LiteralExpressionSyntax)expression;
 
                                 if (literalExpression.Token.ValueText.Length == 1)
                                 {
                                     SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 
-                                    if (semanticModel.GetTypeInfo(node, context.CancellationToken).ConvertedType?.IsChar() == true)
+                                    if (semanticModel.GetTypeInfo(expression, context.CancellationToken).ConvertedType?.IsChar() == true)
                                     {
                                         CodeAction codeAction = CodeAction.Create(
                                             "Replace string literal with character literal",
                                             cancellationToken => ReplaceStringLiteralWithCharacterLiteralRefactoring.RefactorAsync(context.Document, literalExpression, cancellationToken),
-                                            GetEquivalenceKey(diagnostic));
+                                            GetEquivalenceKey(diagnostic, CodeFixIdentifiers.ReplaceStringLiteralWithCharacterLiteral));
 
                                         context.RegisterCodeFix(codeAction, diagnostic);
                                     }
@@ -62,9 +72,9 @@ namespace Roslynator.CSharp.CodeFixes
                             }
 
                             if (Settings.IsCodeFixEnabled(CodeFixIdentifiers.UseYieldReturnInsteadOfReturn)
-                                && node.IsParentKind(SyntaxKind.ReturnStatement))
+                                && expression.IsParentKind(SyntaxKind.ReturnStatement))
                             {
-                                var returnStatement = (ReturnStatementSyntax)node.Parent;
+                                var returnStatement = (ReturnStatementSyntax)expression.Parent;
 
                                 SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 
@@ -76,7 +86,7 @@ namespace Roslynator.CSharp.CodeFixes
                                     CodeAction codeAction = CodeAction.Create(
                                         "Use yield return instead of return",
                                         cancellationToken => UseYieldReturnInsteadOfReturnRefactoring.RefactorAsync(context.Document, returnStatement, SyntaxKind.YieldReturnStatement, semanticModel, cancellationToken),
-                                        GetEquivalenceKey(diagnostic));
+                                        GetEquivalenceKey(diagnostic, CodeFixIdentifiers.UseYieldReturnInsteadOfReturn));
 
                                     context.RegisterCodeFix(codeAction, diagnostic);
                                 }
