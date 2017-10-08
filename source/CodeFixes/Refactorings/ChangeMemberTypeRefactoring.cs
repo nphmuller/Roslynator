@@ -58,10 +58,16 @@ namespace Roslynator.CSharp.Refactorings
 
             ITypeSymbol newTypeSymbol = expressionTypeSymbol;
 
+            string additionalKey = null;
+
+            bool isAsyncMethod = false;
             bool insertAwait = false;
+            bool isYield = false;
 
             if (symbol.IsAsyncMethod())
             {
+                isAsyncMethod = true;
+
                 INamedTypeSymbol taskOfT = semanticModel.GetTypeByMetadataName(MetadataNames.System_Threading_Tasks_Task_T);
 
                 if (taskOfT == null)
@@ -74,31 +80,36 @@ namespace Roslynator.CSharp.Refactorings
                 else if (expressionTypeSymbol.IsConstructedFrom(taskOfT))
                 {
                     insertAwait = true;
+                    additionalKey = "InsertAwait";
                 }
                 else if (expressionTypeSymbol.Equals(semanticModel.GetTypeByMetadataName(MetadataNames.System_Threading_Tasks_Task)))
                 {
                     return;
                 }
             }
-
-            string additionalKey = null;
-
-            if (newTypeSymbol is INamedTypeSymbol newNamedType)
+            else if (expression.IsParentKind(SyntaxKind.YieldReturnStatement))
             {
-                INamedTypeSymbol orderedEnumerableSymbol = semanticModel.GetTypeByMetadataName(MetadataNames.System_Linq_IOrderedEnumerable_T);
+                isYield = true;
 
-                if (newNamedType.ConstructedFrom.Equals(orderedEnumerableSymbol))
-                {
-                    INamedTypeSymbol enumerableSymbol = semanticModel.GetTypeByMetadataName(MetadataNames.System_Collections_Generic_IEnumerable_T);
+                newTypeSymbol = semanticModel
+                    .Compilation
+                    .GetSpecialType(SpecialType.System_Collections_Generic_IEnumerable_T)
+                    .Construct(expressionTypeSymbol);
+            }
 
-                    if (!typeSymbol.IsConstructedFrom(enumerableSymbol))
-                    {
-                        INamedTypeSymbol constructedEnumerableSymbol = enumerableSymbol.Construct(newNamedType.TypeArguments.ToArray());
+            if (!isYield
+                && !isAsyncMethod
+                && newTypeSymbol is INamedTypeSymbol newNamedType
+                && newNamedType.ConstructedFrom.Equals(semanticModel.GetTypeByMetadataName(MetadataNames.System_Linq_IOrderedEnumerable_T))
+                && !typeSymbol.IsConstructedFromIEnumerableOfT())
+            {
+                INamedTypeSymbol constructedEnumerableSymbol = semanticModel
+                    .Compilation
+                    .GetSpecialType(SpecialType.System_Collections_Generic_IEnumerable_T)
+                    .Construct(newNamedType.TypeArguments.ToArray());
 
-                        RegisterCodeFix(context, diagnostic, node, type, expression, constructedEnumerableSymbol, semanticModel, insertAwait: insertAwait);
-                        additionalKey = "IOrderedEnumerable<T>";
-                    }
-                }
+                RegisterCodeFix(context, diagnostic, node, type, expression, constructedEnumerableSymbol, semanticModel, insertAwait: false);
+                additionalKey = "IOrderedEnumerable<T>";
             }
 
             RegisterCodeFix(context, diagnostic, node, type, expression, newTypeSymbol, semanticModel, insertAwait: insertAwait, additionalKey: additionalKey);

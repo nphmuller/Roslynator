@@ -144,11 +144,6 @@ namespace Roslynator.CSharp.Refactorings.Tests
             {
                 return Task.FromResult(new object());
             }
-
-            private async Task<bool> TaskOfTTaskAsync()
-            {
-                return Task.Run(null);
-            }
         }
 
         private class AsyncMethodExpressionBody
@@ -164,8 +159,19 @@ namespace Roslynator.CSharp.Refactorings.Tests
             private async Task<bool> TaskOfTAwaitAsync() => await Task.FromResult(new object());
 
             private async Task<bool> TaskOfTAsync() => Task.FromResult(new object());
+        }
 
-            private async Task<bool> TaskOfTTaskAsync() => Task.Run(null);
+        private class YieldReturn
+        {
+            private static IEnumerable<string> Foo()
+            {
+                yield return default(long);
+            }
+
+            private static IEnumerable<int> Foo2()
+            {
+                yield return default(long);
+            }
         }
 
         //IOrderedEnumerable<T>
@@ -181,6 +187,16 @@ namespace Roslynator.CSharp.Refactorings.Tests
         }
 
         //n
+
+        private class AsyncMethodReturnTask
+        {
+            private async Task<bool> TaskOfTTaskAsync()
+            {
+                return Task.Run(null);
+            }
+
+            private async Task<bool> TaskOfTTaskAsync() => Task.Run(null);
+        }
 
         private interface IFoo
         {

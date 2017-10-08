@@ -12,7 +12,6 @@ namespace Roslynator.CSharp.Refactorings
         public static async Task ComputeRefactoringsAsync(RefactoringContext context, YieldStatementSyntax yieldStatement)
         {
             if (context.IsAnyRefactoringEnabled(
-                    RefactoringIdentifiers.ChangeMemberTypeAccordingToYieldReturnExpression,
                     RefactoringIdentifiers.AddCastExpression,
                     RefactoringIdentifiers.CallToMethod)
                 && yieldStatement.IsYieldReturn()
@@ -38,34 +37,6 @@ namespace Roslynator.CSharp.Refactorings
                         if (memberTypeSymbol?.SpecialType != SpecialType.System_Collections_IEnumerable)
                         {
                             ITypeSymbol typeSymbol = semanticModel.GetTypeSymbol(yieldStatement.Expression, context.CancellationToken);
-
-                            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ChangeMemberTypeAccordingToYieldReturnExpression)
-                                && typeSymbol?.IsErrorType() == false
-                                && !typeSymbol.IsVoid()
-                                && !memberSymbol.IsOverride
-                                && (memberTypeSymbol == null
-                                    || memberTypeSymbol.IsErrorType()
-                                    || !memberTypeSymbol.IsConstructedFromIEnumerableOfT()
-                                    || !((INamedTypeSymbol)memberTypeSymbol).TypeArguments[0].Equals(typeSymbol)))
-                            {
-                                INamedTypeSymbol newTypeSymbol = semanticModel
-                                    .Compilation
-                                    .GetSpecialType(SpecialType.System_Collections_Generic_IEnumerable_T)
-                                    .Construct(typeSymbol);
-
-                                TypeSyntax newType = newTypeSymbol.ToMinimalTypeSyntax(semanticModel, type.SpanStart);
-
-                                context.RegisterRefactoring(
-                                    $"Change {ReturnExpressionRefactoring.GetText(node)} type to '{SymbolDisplay.GetMinimalString(newTypeSymbol, semanticModel, type.SpanStart)}'",
-                                    cancellationToken =>
-                                    {
-                                        return ChangeTypeRefactoring.ChangeTypeAsync(
-                                            context.Document,
-                                            type,
-                                            newType,
-                                            cancellationToken);
-                                    });
-                            }
 
                             if (context.IsAnyRefactoringEnabled(RefactoringIdentifiers.AddCastExpression, RefactoringIdentifiers.CallToMethod)
                                 && yieldStatement.Expression.Span.Contains(context.Span)
