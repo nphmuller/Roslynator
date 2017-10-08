@@ -202,5 +202,18 @@ namespace Roslynator.CSharp.Refactorings.Tests
                 return new object();
             }
         }
+
+        private class FooTuple
+        {
+            private static void Foo()
+            {
+                return (0, new { Value = "x" });
+            }
+
+            private static string Foo2()
+            {
+                return (0, new { Value = "x" });
+            }
+        }
     }
 }

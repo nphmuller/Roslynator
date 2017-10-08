@@ -75,6 +75,10 @@ namespace Roslynator.CSharp.Refactorings
                 {
                     insertAwait = true;
                 }
+                else if (expressionTypeSymbol.Equals(semanticModel.GetTypeByMetadataName(MetadataNames.System_Threading_Tasks_Task)))
+                {
+                    return;
+                }
             }
 
             string additionalKey = null;

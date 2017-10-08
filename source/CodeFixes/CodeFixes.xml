@@ -349,6 +349,7 @@
   <CodeFix Id="RCF0063" Identifier="AddCastExpression" Title="Add cast expression">
     <FixableDiagnosticIds>
       <Id>CS0173</Id>
+      <Id>CS0266</Id>
     </FixableDiagnosticIds>
   </CodeFix>
   <CodeFix Id="RCF0064" Identifier="MoveConstraint" Title="Move constraint">

@@ -70,7 +70,6 @@
     <Compile Include="CodeFixes\IdentifierNameCodeFixProvider.cs" />
     <Compile Include="CodeFixes\InvocationExpressionCodeFixProvider.cs" />
     <Compile Include="CodeFixes\LabeledStatementCodeFixProvider.cs" />
-    <Compile Include="CodeFixes\CannotImplicitlyConvertTypeCodeFixProvider.cs" />
     <Compile Include="CodeFixes\MarkOperatorAsPublicAndStaticCodeFixProvider.cs" />
     <Compile Include="CodeFixes\MemberDeclarationCodeFixProvider.cs" />
     <Compile Include="CodeFixes\OperatorCannotBeAppliedToOperandsCodeFixProvider.cs" />
