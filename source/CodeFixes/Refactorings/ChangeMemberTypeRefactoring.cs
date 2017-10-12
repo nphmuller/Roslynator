@@ -208,7 +208,7 @@ namespace Roslynator.CSharp.Refactorings
 
             Debug.Fail(expression.ToString());
 
-            return default((ISymbol symbol, ITypeSymbol typeSymbol));
+            return default((ISymbol, ITypeSymbol));
         }
 
         private static TypeSyntax GetTypeOrReturnType(SyntaxNode node)
