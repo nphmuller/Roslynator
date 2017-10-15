@@ -1225,4 +1225,10 @@
       <Syntax>collection initializer</Syntax>
     </Syntaxes>
   </Refactoring>
+  <Refactoring Id="RR0192" Identifier="RemoveUnnecessaryElseClause" Title="Remove unnecessary else clause">
+    <Syntaxes>
+      <Syntax>else clause</Syntax>
+    </Syntaxes>
+    <Scope>else keyword</Scope>
+  </Refactoring>
 </Refactorings>

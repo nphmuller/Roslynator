@@ -119,6 +119,7 @@ namespace Roslynator.CSharp.Refactorings
         public const string RemoveRegion = Prefix + "0108";
         public const string RemoveStatement = Prefix + "0109";
         public const string RemoveStatementsFromSwitchSections = Prefix + "0110";
+        public const string RemoveUnnecessaryElseClause = Prefix + "0192";
         public const string RenameBackingFieldAccordingToPropertyName = Prefix + "0111";
         public const string RenameIdentifierAccordingToTypeName = Prefix + "0112";
         public const string RenameMethodAccordingToTypeName = Prefix + "0113";
