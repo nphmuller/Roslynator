@@ -2145,5 +2145,16 @@ namespace Roslynator.CSharp
             helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.ReorderTypeParameterConstraints}", 
             customTags:         Array.Empty<string>());
 
+        public static readonly DiagnosticDescriptor RemoveUnnecessaryElseClause = new DiagnosticDescriptor(
+            id:                 DiagnosticIdentifiers.RemoveUnnecessaryElseClause, 
+            title:              "Remove unnecessary else clause.", 
+            messageFormat:      "Remove unnecessary else clause.", 
+            category:           DiagnosticCategories.Redundancy, 
+            defaultSeverity:    DiagnosticSeverity.Hidden, 
+            isEnabledByDefault: true, 
+            description:        null, 
+            helpLinkUri:        $"{HelpLinkUriRoot}{DiagnosticIdentifiers.RemoveUnnecessaryElseClause}", 
+            customTags:         Array.Empty<string>());
+
     }
 }

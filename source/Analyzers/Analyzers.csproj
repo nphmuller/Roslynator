@@ -477,6 +477,8 @@
     <Compile Include="DiagnosticAnalyzers\BlockDiagnosticAnalyzer.cs" />
     <Compile Include="CodeFixProviders\AddBracesToIfElseCodeFixProvider.cs" />
     <Compile Include="Refactorings\UseStringLengthInsteadOfComparisonWithEmptyStringRefactoring.cs" />
+    <Compile Include="CodeFixProviders\RemoveElseClauseCodeFixProvider.cs" />
+    <Compile Include="DiagnosticAnalyzers\RemoveElseClauseDiagnosticAnalyzer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

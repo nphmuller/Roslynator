@@ -13,36 +13,32 @@ namespace Roslynator.CSharp.Refactorings
 {
     internal static class RemoveUnnecessaryElseClauseRefactoring
     {
-        public static void ComputeRefactoring(RefactoringContext context, ElseClauseSyntax elseClause)
+        public static bool IsFixable(ElseClauseSyntax elseClause)
         {
             if (elseClause.Statement?.IsKind(SyntaxKind.IfStatement) != false)
-                return;
+                return false;
 
             if (!(elseClause.Parent is IfStatementSyntax ifStatement))
-                return;
+                return false;
 
             if (!ifStatement.IsTopmostIf())
-                return;
+                return false;
 
             StatementSyntax statement = ifStatement.Statement;
 
             if (statement is BlockSyntax block)
                 statement = block.Statements.LastOrDefault();
 
-            if (statement?.Kind().IsJumpStatement() != true)
-                return;
-
-            context.RegisterRefactoring(
-                "Remove else clause",
-                cancellationToken => RefactorAsync(context.Document, ifStatement, elseClause, cancellationToken));
+            return statement?.Kind().IsJumpStatement() == true;
         }
 
-        private static Task<Document> RefactorAsync(
+        public static Task<Document> RefactorAsync(
             Document document,
-            IfStatementSyntax ifStatement,
             ElseClauseSyntax elseClause,
             CancellationToken cancellationToken = default(CancellationToken))
         {
+            var ifStatement = (IfStatementSyntax)elseClause.Parent;
+
             List<StatementSyntax> newStatements = null;
 
             if (elseClause.Statement is BlockSyntax block)

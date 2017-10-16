@@ -11,9 +11,12 @@ namespace Roslynator.CSharp.Refactorings
         public static void ComputeRefactorings(RefactoringContext context, ElseClauseSyntax elseClause)
         {
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.RemoveUnnecessaryElseClause)
-                && context.Span.IsEmptyAndContainedInSpan(elseClause.ElseKeyword))
+                && context.Span.IsEmptyAndContainedInSpan(elseClause.ElseKeyword)
+                && RemoveUnnecessaryElseClauseRefactoring.IsFixable(elseClause))
             {
-                RemoveUnnecessaryElseClauseRefactoring.ComputeRefactoring(context, elseClause);
+                context.RegisterRefactoring(
+                    "Remove else clause",
+                    cancellationToken => RemoveUnnecessaryElseClauseRefactoring.RefactorAsync(context.Document, elseClause, cancellationToken));
             }
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.RemoveConditionFromLastElse)
